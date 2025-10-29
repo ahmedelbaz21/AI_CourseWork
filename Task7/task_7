@@ -1,0 +1,110 @@
+from collections import deque
+import heapq
+import time
+
+
+maze = [
+    [1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
+    [0, 1, 0, 1, 0, 1, 1, 0, 1, 0],
+    [1, 1, 1, 1, 0, 1, 0, 1, 1, 1],
+    [1, 0, 1, 0, 1, 1, 0, 1, 0, 1],
+    [1, 0, 1, 1, 1, 0, 1, 1, 0, 1],
+    [1, 1, 0, 0, 1, 0, 1, 0, 1, 1],
+    [0, 1, 1, 0, 1, 1, 1, 0, 1, 0],
+    [1, 0, 1, 1, 1, 0, 1, 1, 1, 1],
+    [1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1, 0, 1, 1, 1, 1]
+]
+
+start = (0, 0)
+goal = (9, 9)
+
+
+def bfs(maze, start, goal):
+    start_time = time.time()
+    queue = deque([(start, [start])])
+    visited = set([start])
+    steps = 0
+
+    while queue:
+        (x, y), path = queue.popleft()
+        steps += 1
+
+        if (x, y) == goal:
+            return path, steps, time.time() - start_time, len(visited)
+
+        for dx, dy in [(-1,0),(1,0),(0,-1),(0,1)]:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < len(maze) and 0 <= ny < len(maze[0]):
+                if maze[nx][ny] == 1 and (nx, ny) not in visited:
+                    visited.add((nx, ny))
+                    queue.append(((nx, ny), path + [(nx, ny)]))
+    return None, steps, time.time() - start_time, len(visited)
+
+
+
+def heuristic(a, b):
+
+    return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+def astar(maze, start, goal):
+    start_time = time.time()
+    open_list = []
+    heapq.heappush(open_list, (0 + heuristic(start, goal), 0, start, [start]))
+    visited = set([start])
+
+    while open_list:
+        f, g, current, path = heapq.heappop(open_list)
+        x, y = current
+
+        if current == goal:
+            return path, len(visited), time.time() - start_time
+
+        for dx, dy in [(-1,0),(1,0),(0,-1),(0,1)]:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < len(maze) and 0 <= ny < len(maze[0]) and maze[nx][ny] == 1:
+                new_cost = g + 1
+                neighbor = (nx, ny)
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    f = new_cost + heuristic(neighbor, goal)
+                    heapq.heappush(open_list, (f, new_cost, neighbor, path + [neighbor]))
+
+    return None, len(visited), time.time() - start_time
+
+
+bfs_path, bfs_steps, bfs_time, bfs_space = bfs(maze, start, goal)
+astar_path, astar_space, astar_time = astar(maze, start, goal)
+
+
+def print_maze_with_path(maze, path, title):
+    print(f"\n{title}")
+    maze_copy = [row[:] for row in maze]
+    for x, y in path:
+        if (x, y) != start and (x, y) != goal:
+            maze_copy[x][y] = '*'
+    sx, sy = start
+    gx, gy = goal
+    maze_copy[sx][sy] = 'S'
+    maze_copy[gx][gy] = 'E'
+    for row in maze_copy:
+        print(' '.join(str(cell) for cell in row))
+
+
+
+print_maze_with_path(maze, bfs_path, "BFS Path:")
+print(f"\nPath Length: {len(bfs_path)-1}")
+print(f"Time: {bfs_time:.6f} sec")
+print(f"Space (Visited Nodes): {bfs_space}")
+
+print_maze_with_path(maze, astar_path, "A* Path:")
+print(f"\nPath Length: {len(astar_path)-1}")
+print(f"Time: {astar_time:.6f} sec")
+print(f"Space (Visited Nodes): {astar_space}")
+
+print("COMPARISON")
+print(f"{'Metric':<20}{'BFS':<15}{'A*':<15}")
+print(f"{'Path Length':<20}{len(bfs_path)-1:<15}{len(astar_path)-1:<15}")
+print(f"{'Time (seconds)':<20}{bfs_time:.6f}{'':<5}{astar_time:.6f}")
+print(f"{'Space (visited nodes)':<20}{bfs_space:<15}{astar_space:<15}")
+
