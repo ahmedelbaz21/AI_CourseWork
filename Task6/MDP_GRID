@@ -1,0 +1,131 @@
+import numpy as np
+
+
+rows, cols = 3, 4
+
+
+terminals = {
+    (0, 3): 1.0,   
+    (1, 3): -1.0   
+}
+
+
+walls = {(1, 1)}
+
+all_states = [(r, c) for r in range(rows) for c in range(cols) if (r, c) not in walls]
+
+
+ACTIONS = {
+    'U': (-1, 0),
+    'D': ( 1, 0),
+    'L': ( 0,-1),
+    'R': ( 0, 1)
+}
+
+
+P_INTENDED = 0.8
+P_SIDE = 0.1
+
+def in_bounds(s):
+    r, c = s
+    return 0 <= r < rows and 0 <= c < cols and s not in walls
+
+def move(s, action):
+    """Moves to a new state or stays if hitting a wall/boundary."""
+    if s in terminals:
+        return s
+    dr, dc = ACTIONS[action]
+    new = (s[0] + dr, s[1] + dc)
+    return new if in_bounds(new) else s
+
+def transition_probs(s, a):
+    """Returns (prob, next_state, reward) outcomes for taking action a."""
+    if s in terminals:
+        return [(1.0, s, terminals[s])]  
+
+    outcomes = {}
+
+
+    s_int = move(s, a)
+    outcomes[s_int] = outcomes.get(s_int, 0) + P_INTENDED
+
+
+    if a in ['U', 'D']:
+        sides = ['L', 'R']
+    else:
+        sides = ['U', 'D']
+
+    for side in sides:
+        s_side = move(s, side)
+        outcomes[s_side] = outcomes.get(s_side, 0) + P_SIDE
+
+
+    step_reward = -0.04
+    result = []
+    for ns, p in outcomes.items():
+        r = terminals[ns] if ns in terminals else step_reward
+        result.append((p, ns, r))
+
+    return result
+
+
+gamma = 0.99
+theta = 1e-4
+
+V = {s: 0.0 for s in all_states}
+for t in terminals:
+    V[t] = terminals[t]
+
+def one_step_lookahead(s, V):
+    """Returns values for each action in state s."""
+    values = {}
+    for a in ACTIONS:
+        total = 0
+        for (p, ns, r) in transition_probs(s, a):
+            total += p * (r + gamma * V[ns])
+        values[a] = total
+    return values
+
+
+while True:
+    delta = 0
+    for s in all_states:
+        if s in terminals:
+            continue
+        action_values = one_step_lookahead(s, V)
+        best = max(action_values.values())
+        delta = max(delta, abs(best - V[s]))
+        V[s] = best
+    if delta < theta:
+        break
+
+
+policy = {}
+for s in all_states:
+    if s in terminals:
+        policy[s] = None
+    else:
+        policy[s] = max(one_step_lookahead(s, V), key=lambda a: one_step_lookahead(s, V)[a])
+
+
+print("Final Value Function:")
+for r in range(rows):
+    row = ""
+    for c in range(cols):
+        if (r, c) in walls:
+            row += " WALL   "
+        else:
+            row += f"{V[(r, c)]:6.2f} "
+    print(row)
+
+print("\nPolicy (U/D/L/R):")
+for r in range(rows):
+    row = ""
+    for c in range(cols):
+        if (r, c) in walls:
+            row += " WALL "
+        elif (r, c) in terminals:
+            row += "  T   "
+        else:
+            row += "  " + policy[(r, c)] + "  "
+    print(row)
