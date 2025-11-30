@@ -77,6 +77,7 @@ for t in terminals:
     V[t] = terminals[t]
 
 def one_step_lookahead(s, V):
+    
     values = {}
     for a in ACTIONS:
         total = 0
